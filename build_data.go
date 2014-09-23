@@ -1,8 +1,12 @@
 package main
 
 import (
-	"fmt"
+//"fmt"
 )
+
+type aaa struct {
+	Sku string `json:"sku"`
+}
 
 func build_data() {
 
@@ -10,26 +14,37 @@ func build_data() {
 	PanicIf(err)
 	defer db.Close()
 
-	//delete jason schema
-	err = db.DeleteSchema("jason", "force")
+	var dbLayer = new(DbLayer)
+	dbLayer.Conn = db
+
+	//delete admin schema
+	schema, err := dbLayer.GetSchema("admin")
+	if schema != nil {
+		err = dbLayer.DeleteSchema("admin", "force")
+		PanicIf(err)
+	}
+
+	admin_schema, err := dbLayer.CreateSchema("admin")
 	PanicIf(err)
 
-	schema, err := db.CreateSchema("jason")
+	stores, err := admin_schema.CreateCollection("stores")
 	PanicIf(err)
 
-	//create product's collection
-	products, err := schema.CreateCollection("products")
+	err = stores.CreateIndex("unique_storename_idx", true, "(data->>'name')")
 	PanicIf(err)
 
-	err = products.CreateIndex("product_sku_index", true, "(data->>'sku')")
+	//create jason store
+	adminService := NewAdminService(dbLayer)
+	_, jasonStore, err := adminService.GetStore("jason")
 	PanicIf(err)
 
-	//insert products
-	skus := []Sku{{Sku: "abc123-123"}}
-	product1 := Product{Name: "Jason", Skus: skus}
+	if jasonStore != nil {
+		err = adminService.DeleteStore("jason")
+		PanicIf(err)
+	}
 
-	oid1, err := products.Insert(product1)
-	fmt.Println(oid1)
+	var myStore = Store{Name: "jason"}
+	_, err = adminService.CreateStore(myStore)
 	PanicIf(err)
 
 }

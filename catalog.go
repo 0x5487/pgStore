@@ -64,3 +64,16 @@ type CustomField struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
+
+type CatalogService struct {
+	DB    *DbLayer
+	Store Store
+}
+
+func (source *CatalogService) CreateCollection(collection Collection) (int64, error) {
+	return 0, nil
+}
+
+func (source *CatalogService) CreateProduct(product Product) (int64, error) {
+	return 0, nil
+}
