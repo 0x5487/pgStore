@@ -17,14 +17,19 @@ func build_data() {
 	var dbLayer = new(DbLayer)
 	dbLayer.Conn = db
 
-	//delete admin schema
-	schema, err := dbLayer.GetSchema("admin")
-	if schema != nil {
+	//delete admin and jason schema
+	jason_schema, err := dbLayer.GetSchema("jason")
+	if jason_schema != nil {
+		dbLayer.DeleteSchema("jason", "force")
+	}
+
+	admin_schema, err := dbLayer.GetSchema("admin")
+	if admin_schema != nil {
 		err = dbLayer.DeleteSchema("admin", "force")
 		PanicIf(err)
 	}
 
-	admin_schema, err := dbLayer.CreateSchema("admin")
+	admin_schema, err = dbLayer.CreateSchema("admin")
 	PanicIf(err)
 
 	stores, err := admin_schema.CreateCollection("stores")
@@ -35,16 +40,8 @@ func build_data() {
 
 	//create jason store
 	adminService := NewAdminService(dbLayer)
-	_, jasonStore, err := adminService.GetStore("jason")
-	PanicIf(err)
-
-	if jasonStore != nil {
-		err = adminService.DeleteStore("jason")
-		PanicIf(err)
-	}
 
 	var myStore = Store{Name: "jason"}
 	_, err = adminService.CreateStore(myStore)
 	PanicIf(err)
-
 }

@@ -137,7 +137,7 @@ func (source *JCollection) CreateIndex(indexName string, isUnique bool, argu str
 	return nil
 }
 
-func (source *JCollection) Insert(target interface{}, tx *sql.Tx) (int64, error) {
+func (source *JCollection) Insert(target interface{}) (int, error) {
 	var db = source.Schema.DB.Conn.(DbWrapper)
 	targetJSON, err := toJSON(target)
 	//var insertSQL = fmt.Sprintf("INSERT INTO %s.%s (data) VALUES ('%s')", source.Schema.Name, source.Name, targetJSON)
@@ -145,13 +145,8 @@ func (source *JCollection) Insert(target interface{}, tx *sql.Tx) (int64, error)
 	var insertSQL = fmt.Sprintf("INSERT INTO %s.%s (data) VALUES ($1) RETURNING id", source.Schema.Name, source.Name)
 	logInfo(insertSQL)
 	logInfo(targetJSON)
-	var id int64
-	if tx != nil {
-		err = db.QueryRow(insertSQL, targetJSON).Scan(&id)
-	} else {
-		err = tx.QueryRow(insertSQL, targetJSON).Scan(&id)
-
-	}
+	var id int
+	err = db.QueryRow(insertSQL, targetJSON).Scan(&id)
 
 	PanicIf(err)
 
@@ -161,12 +156,18 @@ func (source *JCollection) Insert(target interface{}, tx *sql.Tx) (int64, error)
 func (source *JCollection) FindOne(query string, target interface{}) (int, error) {
 	var db = source.Schema.DB.Conn.(DbWrapper)
 
-	var querySQL string = fmt.Sprintf("SELECT * FORM %s.%s WHERE (%s) limit 1;", source.Schema.Name, source.Name, query)
+	var querySQL string = fmt.Sprintf("SELECT * FROM %s.%s WHERE (data @> '%s') limit 1;", source.Schema.Name, source.Name, query)
 
-	var id int
-	var json string
-	err := db.QueryRow(querySQL).Scan(&id, json)
-	if err != nil {
+	var (
+		id   int
+		json string
+	)
+
+	logInfo(querySQL)
+	err := db.QueryRow(querySQL).Scan(&id, &json)
+	logInfo(fmt.Sprintf("id: %d, json: %s", id, json))
+
+	if err != nil && err != sql.ErrNoRows {
 		return 0, err
 	}
 
@@ -176,11 +177,10 @@ func (source *JCollection) FindOne(query string, target interface{}) (int, error
 func (source *JCollection) Remove(id int) error {
 	var db = source.Schema.DB.Conn.(DbWrapper)
 
-	var querySQL string = fmt.Sprintf("DELETE FORM %s.%s WHERE id=%d;", source.Schema.Name, source.Name, id)
+	var deleteSQL string = fmt.Sprintf("DELETE FORM %s.%s WHERE id=%d;", source.Schema.Name, source.Name, id)
 
-	var oid int
-	var json string
-	err := db.QueryRow(querySQL).Scan(&oid, json)
+	logInfo(deleteSQL)
+	_, err := db.Exec(deleteSQL)
 	if err != nil {
 		return err
 	}
