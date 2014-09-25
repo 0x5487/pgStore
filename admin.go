@@ -14,8 +14,8 @@ type AdminService struct {
 }
 
 func NewAdminService(dbLayer *DbLayer) *AdminService {
-	service := AdminService{DB: dbLayer}
-	return &service
+	service := &AdminService{DB: dbLayer}
+	return service
 }
 
 func (source *AdminService) GetStore(name string) (int, *Store, error) {
@@ -77,6 +77,18 @@ func (source *AdminService) CreateStore(store Store) (int, error) {
 	}
 
 	err = products.CreateIndex("unique_resourceId_idx", true, "(data->>'resource_id')")
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	unique_skus, err := schema.CreateCollection("unique_skus")
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	err = unique_skus.CreateIndex("unique_sku_idx", true, "(data->>'sku')")
 	if err != nil {
 		tx.Rollback()
 		return 0, err

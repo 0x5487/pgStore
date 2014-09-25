@@ -27,6 +27,11 @@ type JCollection struct {
 	Name   string
 }
 
+type JDocument struct {
+	id   int
+	data string
+}
+
 func GetDB() (*sql.DB, error) {
 	db, err := sql.Open("postgres", "host=localhost dbname=ecStore user=postgres sslmode=disable")
 	if err != nil {
@@ -89,6 +94,11 @@ func (source *DbLayer) DeleteSchema(name string, params ...string) error {
 	}
 
 	return nil
+}
+
+func (source *JSchema) GetCollection(name string) (*JCollection, error) {
+	collection := &JCollection{Schema: source, Name: name}
+	return collection, nil
 }
 
 func (source *JSchema) CreateCollection(name string) (*JCollection, error) {

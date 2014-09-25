@@ -1,5 +1,15 @@
 package main
 
+import (
+	"errors"
+)
+
+type Key struct {
+	Sku string `json:"sku"`
+}
+
+type Money int64
+
 type Collection struct {
 	ResourceId      string        `json:"resource_id"`
 	Name            string        `json:"name"`
@@ -21,8 +31,8 @@ type Product struct {
 	Content                   string `json:"content"`
 	Tags                      string `json:"tags"`
 	Vendor                    string `json:"vendor"`
-	ListPrice                 int64  `json:"list_price"`
-	Price                     int64  `json:"price"`
+	ListPrice                 Money  `json:"list_price"`
+	Price                     Money  `json:"price"`
 	Weight                    int    `json:"weight"`
 	SortOrder                 int    `json:"sort_order"`
 	IsPurchasable             bool   `json:"is_purchaseable"`
@@ -47,8 +57,8 @@ type Product struct {
 
 type Sku struct {
 	Sku                   string `json:"sku"`
-	ListPrice             int64  `json:"list_price"`
-	Price                 int64  `json:"price"`
+	ListPrice             Money  `json:"list_price"`
+	Price                 Money  `json:"price"`
 	SortOrder             int    `json:"sort_order"`
 	InventoryQuantity     int    `json:"inventory_quantity"`
 	ManageInventoryMethod int    `json:"manage_inventory_method"`
@@ -66,14 +76,78 @@ type CustomField struct {
 }
 
 type CatalogService struct {
-	DB    *DbLayer
-	Store Store
+	DB     *DbLayer
+	Schema *JSchema
+	Store  Store
 }
 
-func (source *CatalogService) CreateCollection(collection Collection) (int64, error) {
-	return 0, nil
+func NewCatalogService(dbLayer *DbLayer, store Store) (*CatalogService, error) {
+	schema, err := dbLayer.GetSchema(store.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	service := &CatalogService{dbLayer, schema, store}
+	return service, nil
 }
 
-func (source *CatalogService) CreateProduct(product Product) (int64, error) {
-	return 0, nil
+func (source *CatalogService) InsertProduct(product Product) (int, error) {
+	//validate product
+	if len(product.Name) <= 0 {
+		return 0, errors.New("product name can't be empty")
+	}
+
+	if len(product.Skus) <= 0 {
+		return 0, errors.New("no skus with the product")
+	} else {
+		for _, sku := range product.Skus {
+			if len(sku.Sku) <= 0 {
+				return 0, errors.New("The sku field can't be empty")
+			}
+		}
+	}
+
+	//insert the product
+	db, err := GetDB()
+	if err != nil {
+		return 0, err
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, err
+	}
+
+	var dbLayer = new(DbLayer)
+	dbLayer.Conn = tx
+
+	schema := &JSchema{DB: dbLayer, Name: source.Store.Name}
+	unique_skus, err := schema.GetCollection("unique_skus")
+	if err != nil {
+		return 0, err
+	}
+
+	for _, sku := range product.Skus {
+		key := &Key{Sku: sku.Sku}
+		_, err = unique_skus.Insert(key)
+		if err != nil {
+			tx.Rollback()
+			return 0, err
+		}
+	}
+
+	products, err := schema.GetCollection("products")
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	id, err := products.Insert(product)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	tx.Commit()
+	return id, nil
 }
