@@ -94,7 +94,7 @@ func NewCatalogService(dbLayer *DbLayer, store Store) (*CatalogService, error) {
 func (source *CatalogService) InsertProduct(product Product) (int, error) {
 	//validate product
 	if len(product.Name) <= 0 {
-		return 0, errors.New("product name can't be empty")
+		return 0, errors.New("name can't be empty")
 	}
 
 	if len(product.Skus) <= 0 {
@@ -128,8 +128,16 @@ func (source *CatalogService) InsertProduct(product Product) (int, error) {
 	}
 
 	for _, sku := range product.Skus {
-		key := &Key{Sku: sku.Sku}
-		_, err = unique_skus.Insert(key)
+		key := Key{Sku: sku.Sku}
+
+		json, err := toJSON(key)
+		if err != nil {
+			return 0, err
+		}
+		doc := new(JDocument)
+		doc.data = json
+
+		err = unique_skus.Insert(doc)
 		if err != nil {
 			tx.Rollback()
 			return 0, err
@@ -142,12 +150,90 @@ func (source *CatalogService) InsertProduct(product Product) (int, error) {
 		return 0, err
 	}
 
-	id, err := products.Insert(product)
+	json, err := toJSON(product)
+	if err != nil {
+		return 0, err
+	}
+	doc := new(JDocument)
+	doc.data = json
+
+	err = products.Insert(doc)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 
 	tx.Commit()
-	return id, nil
+	return doc.id, nil
+}
+
+func (source *CatalogService) InsertCollection(collection Collection) (int, error) {
+	//validate collection
+	if len(collection.Name) <= 0 {
+		return 0, errors.New("name can't be empty")
+	}
+	if len(collection.ResourceId) <= 0 {
+		return 0, errors.New("resource_id can't be empty")
+	}
+
+	//insert the collection
+	db, err := GetDB()
+	if err != nil {
+		return 0, err
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, err
+	}
+
+	var dbLayer = new(DbLayer)
+	dbLayer.Conn = tx
+
+	schema := &JSchema{DB: dbLayer, Name: source.Store.Name}
+
+	collections, err := schema.GetCollection("collections")
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	json, err := toJSON(collection)
+	if err != nil {
+		return 0, err
+	}
+	doc := new(JDocument)
+	doc.data = json
+
+	err = collections.Insert(doc)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	tx.Commit()
+	return doc.id, nil
+}
+
+func (source *CatalogService) GetCollections() (*[]Collection, error) {
+	schema := source.Schema
+
+	collections, err := schema.GetCollection("collections")
+	if err != nil {
+		return nil, err
+	}
+
+	docs, err := collections.Find()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(*docs) <= 0 {
+		return nil, nil
+	}
+
+	result := []Collection{}
+
+	return &result, nil
+
 }

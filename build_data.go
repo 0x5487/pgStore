@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+//"fmt"
 )
 
 type aaa struct {
@@ -51,14 +51,17 @@ func build_data() {
 
 	var sku1 = Sku{Sku: "abc001", ListPrice: 100, Price: 90}
 	var product1 = Product{ResourceId: "men-shoe", Name: "men shoe", Skus: []Sku{sku1}}
-	id, err := catalogService.InsertProduct(product1)
+	_, err = catalogService.InsertProduct(product1)
 	PanicIf(err)
 
 	var sku2 = Sku{Sku: "abc002", ListPrice: 120, Price: 90}
 	var sku3 = Sku{Sku: "abc003", ListPrice: 110, Price: 10050000}
 	var product2 = Product{ResourceId: "men-shirt", Name: "men shirt", Skus: []Sku{sku2, sku3}}
-	id, err = catalogService.InsertProduct(product2)
+	_, err = catalogService.InsertProduct(product2)
 	PanicIf(err)
 
-	fmt.Println(id)
+	//create collection
+	var collection1 = Collection{ResourceId: "men", Name: "men collection"}
+	_, err = catalogService.InsertCollection(collection1)
+
 }

@@ -147,41 +147,69 @@ func (source *JCollection) CreateIndex(indexName string, isUnique bool, argu str
 	return nil
 }
 
-func (source *JCollection) Insert(target interface{}) (int, error) {
+func (source *JCollection) Insert(doc *JDocument) error {
 	var db = source.Schema.DB.Conn.(DbWrapper)
-	targetJSON, err := toJSON(target)
-	//var insertSQL = fmt.Sprintf("INSERT INTO %s.%s (data) VALUES ('%s')", source.Schema.Name, source.Name, targetJSON)
 
 	var insertSQL = fmt.Sprintf("INSERT INTO %s.%s (data) VALUES ($1) RETURNING id", source.Schema.Name, source.Name)
 	logInfo(insertSQL)
-	logInfo(targetJSON)
-	var id int
-	err = db.QueryRow(insertSQL, targetJSON).Scan(&id)
 
+	err := db.QueryRow(insertSQL, doc.data).Scan(&doc.id)
 	PanicIf(err)
 
-	return id, nil
+	return nil
 }
 
-func (source *JCollection) FindOne(query string, target interface{}) (int, error) {
+func (source *JCollection) FindOne(query string) (*JDocument, error) {
 	var db = source.Schema.DB.Conn.(DbWrapper)
 
 	var querySQL string = fmt.Sprintf("SELECT * FROM %s.%s WHERE (data @> '%s') limit 1;", source.Schema.Name, source.Name, query)
 
-	var (
-		id   int
-		json string
-	)
-
 	logInfo(querySQL)
-	err := db.QueryRow(querySQL).Scan(&id, &json)
-	logInfo(fmt.Sprintf("id: %d, json: %s", id, json))
 
+	result := new(JDocument)
+
+	err := db.QueryRow(querySQL).Scan(result.id, result.data)
 	if err != nil && err != sql.ErrNoRows {
-		return 0, err
+		return nil, err
+	} else if err != nil && err == sql.ErrNoRows {
+		return nil, nil
 	}
 
-	return id, nil
+	logInfo(fmt.Sprintf("id: %d, json: %s", result.id, result.data))
+
+	return result, nil
+}
+
+func (source *JCollection) Find(query ...string) (*[]JDocument, error) {
+	var db = source.Schema.DB.Conn.(DbWrapper)
+
+	var querySQL string
+	if len(query) > 0 {
+		querySQL = fmt.Sprintf("SELECT * FROM %s.%s WHERE (data @> '%s');", source.Schema.Name, source.Name, query)
+	} else {
+		querySQL = fmt.Sprintf("SELECT * FROM %s.%s;", source.Schema.Name, source.Name, query)
+	}
+
+	logInfo(querySQL)
+	rows, err := db.Query(querySQL)
+	if err != nil {
+		return nil, err
+	}
+
+	result := []JDocument{}
+	for rows.Next() {
+		doc := JDocument{}
+		if err := rows.Scan(&doc.id, &doc.data); err != nil {
+			return nil, err
+		}
+		result = append(result, doc)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }
 
 func (source *JCollection) Remove(id int) error {

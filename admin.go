@@ -24,14 +24,15 @@ func (source *AdminService) GetStore(name string) (int, *Store, error) {
 
 	var queryName = fmt.Sprintf("{\"name\":\"%s\"}", name)
 
-	var target *Store
-	id, err := stores.FindOne(queryName, target)
-
+	doc, err := stores.FindOne(queryName)
 	if err != nil {
 		return 0, nil, err
 	}
 
-	return id, target, nil
+	var result *Store
+	fromJSON(result, doc.data)
+
+	return doc.id, result, nil
 }
 
 func (source *AdminService) CreateStore(store Store) (int, error) {
@@ -57,26 +58,34 @@ func (source *AdminService) CreateStore(store Store) (int, error) {
 	schema := &JSchema{DB: dbLayer, Name: "admin"}
 	stores := &JCollection{Schema: schema, Name: "stores"}
 
-	id, err := stores.Insert(store)
+	json, err := toJSON(store)
+	if err != nil {
+		return 0, err
+	}
+	doc := new(JDocument)
+	doc.data = json
+
+	err = stores.Insert(doc)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 
-	//create store schema
+	//create schema
 	schema, err = dbLayer.CreateSchema(store.Name)
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 
+	//create products table
 	products, err := schema.CreateCollection("products")
 	if err != nil {
 		tx.Rollback()
 		return 0, err
 	}
 
-	err = products.CreateIndex("unique_resourceId_idx", true, "(data->>'resource_id')")
+	err = products.CreateIndex("unique_products_resourceId_idx", true, "(data->>'resource_id')")
 	if err != nil {
 		tx.Rollback()
 		return 0, err
@@ -94,9 +103,22 @@ func (source *AdminService) CreateStore(store Store) (int, error) {
 		return 0, err
 	}
 
+	//create collections table
+	collections, err := schema.CreateCollection("collections")
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	err = collections.CreateIndex("unique_collections_resourceId_idx", true, "(data->>'resource_id')")
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
 	tx.Commit()
 
-	return id, nil
+	return doc.id, nil
 }
 
 func (source *AdminService) DeleteStore(id int) error {

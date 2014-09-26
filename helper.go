@@ -34,3 +34,12 @@ func toJSON(target interface{}) (string, error) {
 	}
 	return string(byteArry[:]), nil
 }
+
+func fromJSON(target interface{}, jsonString string) error {
+	byteArray := []byte(jsonString)
+	err := json.Unmarshal(byteArray, target)
+	if err != nil {
+		return err
+	}
+	return nil
+}
