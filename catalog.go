@@ -11,6 +11,7 @@ type Key struct {
 type Money int64
 
 type Collection struct {
+	Id              int64         `json:"id"`
 	ResourceId      string        `json:"resource_id"`
 	Name            string        `json:"name"`
 	IsVisible       bool          `json:"is_visible"`
@@ -25,6 +26,7 @@ type Collection struct {
 }
 
 type Product struct {
+	Id int64 `json:"id"`
 
 	//details
 	Name                      string `json:"name"`
