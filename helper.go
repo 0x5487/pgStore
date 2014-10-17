@@ -43,3 +43,21 @@ func fromJSON(target interface{}, jsonString string) error {
 	}
 	return nil
 }
+
+func PadRight(str, pad string, lenght int) string {
+	for {
+		str += pad
+		if len(str) > lenght {
+			return str[0:lenght]
+		}
+	}
+}
+
+func PadLeft(str, pad string, lenght int) string {
+	for {
+		str = pad + str
+		if len(str) > lenght {
+			return str[0:lenght]
+		}
+	}
+}

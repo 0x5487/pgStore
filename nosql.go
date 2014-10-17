@@ -159,6 +159,27 @@ func (source *JCollection) Insert(doc *JDocument) error {
 	return nil
 }
 
+func (source *JCollection) FindById(id int64) (*JDocument, error) {
+	var db = source.Schema.DB.Conn.(DbWrapper)
+
+	var querySQL string = fmt.Sprintf("SELECT * FROM %s.%s WHERE (id = %d) limit 1;", source.Schema.Name, source.Name, id)
+
+	logInfo(querySQL)
+
+	result := JDocument{}
+
+	err := db.QueryRow(querySQL).Scan(&result.id, &result.data)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	} else if err != nil && err == sql.ErrNoRows {
+		return nil, nil
+	}
+
+	logInfo(fmt.Sprintf("id: %d, json: %s", result.id, result.data))
+
+	return &result, nil
+}
+
 func (source *JCollection) FindOne(query string) (*JDocument, error) {
 	var db = source.Schema.DB.Conn.(DbWrapper)
 

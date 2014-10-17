@@ -79,13 +79,7 @@ func (source *AdminService) CreateStore(store Store) (int, error) {
 	}
 
 	//create products table
-	products, err := schema.CreateCollection("products")
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	err = products.CreateIndex("unique_products_resourceId_idx", true, "(data->>'resource_id')")
+	_, err = schema.CreateCollection("products")
 	if err != nil {
 		tx.Rollback()
 		return 0, err
@@ -104,13 +98,7 @@ func (source *AdminService) CreateStore(store Store) (int, error) {
 	}
 
 	//create collections table
-	collections, err := schema.CreateCollection("collections")
-	if err != nil {
-		tx.Rollback()
-		return 0, err
-	}
-
-	err = collections.CreateIndex("unique_collections_resourceId_idx", true, "(data->>'resource_id')")
+	_, err = schema.CreateCollection("collections")
 	if err != nil {
 		tx.Rollback()
 		return 0, err

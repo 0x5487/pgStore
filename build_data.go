@@ -49,13 +49,13 @@ func build_data() {
 	catalogService, err := NewCatalogService(dbLayer, jasonStore)
 	PanicIf(err)
 
-	var sku1 = Sku{Sku: "abc001", ListPrice: 100, Price: 90}
+	var sku1 = Sku{Sku: "abc001", ListPrice: Money{100, 0}, Price: Money{92, 99}}
 	var product1 = Product{ResourceId: "men-shoe", Name: "men shoe", Skus: []Sku{sku1}}
 	_, err = catalogService.InsertProduct(product1)
 	PanicIf(err)
 
-	var sku2 = Sku{Sku: "abc002", ListPrice: 120, Price: 90}
-	var sku3 = Sku{Sku: "abc003", ListPrice: 110, Price: 10050000}
+	var sku2 = Sku{Sku: "abc002", ListPrice: Money{100, 0}, Price: Money{100, 0}}
+	var sku3 = Sku{Sku: "abc003", ListPrice: Money{100, 0}, Price: Money{100, 0}}
 	var product2 = Product{ResourceId: "men-shirt", Name: "men shirt", Skus: []Sku{sku2, sku3}}
 	_, err = catalogService.InsertProduct(product2)
 	PanicIf(err)
@@ -64,4 +64,11 @@ func build_data() {
 	var collection1 = Collection{ResourceId: "men", Name: "men collection"}
 	_, err = catalogService.InsertCollection(collection1)
 
+	test, err := catalogService.GetProduct(1)
+	PanicIf(err)
+	if test == nil {
+		logDebug("no test")
+	}
+	msg, _ := toJSON(test)
+	logInfo(msg)
 }

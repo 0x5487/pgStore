@@ -8,8 +8,6 @@ type Key struct {
 	Sku string `json:"sku"`
 }
 
-type Money int64
-
 type Collection struct {
 	Id              int64         `json:"id"`
 	ResourceId      string        `json:"resource_id"`
@@ -237,5 +235,30 @@ func (source *CatalogService) GetCollections() (*[]Collection, error) {
 	result := []Collection{}
 
 	return &result, nil
+}
 
+func (source *CatalogService) GetProduct(productId int64) (*Product, error) {
+	schema := source.Schema
+
+	products, err := schema.GetCollection("products")
+	if err != nil {
+		return nil, err
+	}
+
+	doc, err := products.FindById(productId)
+	if err != nil {
+		return nil, err
+	}
+
+	if doc == nil {
+		return nil, nil
+	}
+
+	result := Product{}
+	err = fromJSON(&result, doc.data)
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }
