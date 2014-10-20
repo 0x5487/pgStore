@@ -64,11 +64,6 @@ func build_data() {
 	var collection1 = Collection{ResourceId: "men", Name: "men collection"}
 	_, err = catalogService.InsertCollection(collection1)
 
-	test, err := catalogService.GetProduct(1)
-	PanicIf(err)
-	if test == nil {
-		logDebug("no test")
-	}
-	msg, _ := toJSON(test)
-	logInfo(msg)
+	//create order
+
 }

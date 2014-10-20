@@ -91,7 +91,7 @@ func NewCatalogService(dbLayer *DbLayer, store Store) (*CatalogService, error) {
 	return service, nil
 }
 
-func (source *CatalogService) InsertProduct(product Product) (int, error) {
+func (source *CatalogService) InsertProduct(product Product) (int64, error) {
 	//validate product
 	if len(product.Name) <= 0 {
 		return 0, errors.New("name can't be empty")
@@ -167,7 +167,7 @@ func (source *CatalogService) InsertProduct(product Product) (int, error) {
 	return doc.id, nil
 }
 
-func (source *CatalogService) InsertCollection(collection Collection) (int, error) {
+func (source *CatalogService) InsertCollection(collection Collection) (int64, error) {
 	//validate collection
 	if len(collection.Name) <= 0 {
 		return 0, errors.New("name can't be empty")

@@ -1,12 +1,21 @@
 package main
 
 import (
-	"fmt"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
 
 	build_data()
 
-	fmt.Println("done.")
+	router := gin.Default()
+
+	EnableApi(router)
+
+	router.GET("/", func(c *gin.Context) {
+		c.String(200, "hello world")
+	})
+
+	// Listen and server on 0.0.0.0:8080
+	router.Run(":8080")
 }

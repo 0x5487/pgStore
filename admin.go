@@ -18,7 +18,7 @@ func NewAdminService(dbLayer *DbLayer) *AdminService {
 	return service
 }
 
-func (source *AdminService) GetStore(name string) (int, *Store, error) {
+func (source *AdminService) GetStore(name string) (int64, *Store, error) {
 	schema := JSchema{DB: source.DB, Name: "admin"}
 	stores := JCollection{Schema: &schema, Name: "stores"}
 
@@ -35,7 +35,7 @@ func (source *AdminService) GetStore(name string) (int, *Store, error) {
 	return doc.id, result, nil
 }
 
-func (source *AdminService) CreateStore(store Store) (int, error) {
+func (source *AdminService) CreateStore(store Store) (int64, error) {
 	//validate store object
 	if len(store.Name) == 0 {
 		return 0, errors.New("store name can't be empty")

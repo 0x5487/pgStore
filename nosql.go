@@ -28,7 +28,7 @@ type JCollection struct {
 }
 
 type JDocument struct {
-	id   int
+	id   int64
 	data string
 }
 
@@ -103,7 +103,7 @@ func (source *JSchema) GetCollection(name string) (*JCollection, error) {
 
 func (source *JSchema) CreateCollection(name string) (*JCollection, error) {
 	var db = source.DB.Conn.(DbWrapper)
-	var createTableSQL string = fmt.Sprintf("CREATE TABLE %s.%s (id serial primary key, data jsonb)", source.Name, name)
+	var createTableSQL string = fmt.Sprintf("CREATE TABLE %s.%s (id bigserial primary key, data jsonb, isDeleted boolean)", source.Name, name)
 
 	logInfo(createTableSQL)
 	_, err := db.Exec(createTableSQL)
@@ -150,7 +150,7 @@ func (source *JCollection) CreateIndex(indexName string, isUnique bool, argu str
 func (source *JCollection) Insert(doc *JDocument) error {
 	var db = source.Schema.DB.Conn.(DbWrapper)
 
-	var insertSQL = fmt.Sprintf("INSERT INTO %s.%s (data) VALUES ($1) RETURNING id", source.Schema.Name, source.Name)
+	var insertSQL = fmt.Sprintf("INSERT INTO %s.%s (data, isDeleted) VALUES ($1, false) RETURNING id", source.Schema.Name, source.Name)
 	logInfo(insertSQL)
 
 	err := db.QueryRow(insertSQL, doc.data).Scan(&doc.id)
