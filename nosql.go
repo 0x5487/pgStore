@@ -28,8 +28,9 @@ type JCollection struct {
 }
 
 type JDocument struct {
-	id   int64
-	data string
+	id        int64
+	data      string
+	isDeleted bool
 }
 
 func GetDB() (*sql.DB, error) {
@@ -87,7 +88,7 @@ func (source *DbLayer) DeleteSchema(name string, params ...string) error {
 		}
 	}
 
-	logInfo(delete_schema_sql)
+	logDebug(delete_schema_sql)
 	_, err := db.Exec(delete_schema_sql)
 	if err != nil {
 		return err
@@ -105,7 +106,7 @@ func (source *JSchema) CreateCollection(name string) (*JCollection, error) {
 	var db = source.DB.Conn.(DbWrapper)
 	var createTableSQL string = fmt.Sprintf("CREATE TABLE %s.%s (id bigserial primary key, data jsonb, isDeleted boolean)", source.Name, name)
 
-	logInfo(createTableSQL)
+	logDebug(createTableSQL)
 	_, err := db.Exec(createTableSQL)
 	if err != nil {
 		return nil, err
@@ -119,7 +120,7 @@ func (source *JSchema) DeleteCollection(name string) error {
 	var db = source.DB.Conn.(DbWrapper)
 	var deleteTableSQL string = fmt.Sprintf("DROP TABLE %s", name)
 
-	logInfo(deleteTableSQL)
+	logDebug(deleteTableSQL)
 	_, err := db.Exec(deleteTableSQL)
 	if err != nil {
 		return err
@@ -138,7 +139,7 @@ func (source *JCollection) CreateIndex(indexName string, isUnique bool, argu str
 		createIndexSQL = fmt.Sprintf("CREATE INDEX %s ON %s.%s( %s )", indexName, source.Schema.Name, source.Name, argu)
 	}
 
-	logInfo(createIndexSQL)
+	logDebug(createIndexSQL)
 	_, err := db.Exec(createIndexSQL)
 	if err != nil {
 		return err
@@ -151,7 +152,7 @@ func (source *JCollection) Insert(doc *JDocument) error {
 	var db = source.Schema.DB.Conn.(DbWrapper)
 
 	var insertSQL = fmt.Sprintf("INSERT INTO %s.%s (data, isDeleted) VALUES ($1, false) RETURNING id", source.Schema.Name, source.Name)
-	logInfo(insertSQL)
+	logDebug(insertSQL)
 
 	err := db.QueryRow(insertSQL, doc.data).Scan(&doc.id)
 	PanicIf(err)
@@ -164,20 +165,20 @@ func (source *JCollection) FindById(id int64) (*JDocument, error) {
 
 	var querySQL string = fmt.Sprintf("SELECT * FROM %s.%s WHERE (id = %d) limit 1;", source.Schema.Name, source.Name, id)
 
-	logInfo(querySQL)
+	logDebug(querySQL)
 
-	result := JDocument{}
+	result := new(JDocument)
 
-	err := db.QueryRow(querySQL).Scan(&result.id, &result.data)
+	err := db.QueryRow(querySQL).Scan(&result.id, &result.data, &result.isDeleted)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	} else if err != nil && err == sql.ErrNoRows {
 		return nil, nil
 	}
 
-	logInfo(fmt.Sprintf("id: %d, json: %s", result.id, result.data))
+	logDebug(fmt.Sprintf("id: %d, json: %s", result.id, result.data))
 
-	return &result, nil
+	return result, nil
 }
 
 func (source *JCollection) FindOne(query string) (*JDocument, error) {
@@ -185,18 +186,18 @@ func (source *JCollection) FindOne(query string) (*JDocument, error) {
 
 	var querySQL string = fmt.Sprintf("SELECT * FROM %s.%s WHERE (data @> '%s') limit 1;", source.Schema.Name, source.Name, query)
 
-	logInfo(querySQL)
+	logDebug(querySQL)
 
 	result := new(JDocument)
 
-	err := db.QueryRow(querySQL).Scan(result.id, result.data)
+	err := db.QueryRow(querySQL).Scan(&result.id, &result.data, &result.isDeleted)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	} else if err != nil && err == sql.ErrNoRows {
 		return nil, nil
 	}
 
-	logInfo(fmt.Sprintf("id: %d, json: %s", result.id, result.data))
+	logDebug(fmt.Sprintf("id: %d, json: %s", result.id, result.data))
 
 	return result, nil
 }
@@ -208,28 +209,31 @@ func (source *JCollection) Find(query ...string) (*[]JDocument, error) {
 	if len(query) > 0 {
 		querySQL = fmt.Sprintf("SELECT * FROM %s.%s WHERE (data @> '%s');", source.Schema.Name, source.Name, query)
 	} else {
-		querySQL = fmt.Sprintf("SELECT * FROM %s.%s;", source.Schema.Name, source.Name, query)
+		querySQL = fmt.Sprintf("SELECT * FROM %s.%s;", source.Schema.Name, source.Name)
 	}
 
-	logInfo(querySQL)
+	logDebug(querySQL)
 	rows, err := db.Query(querySQL)
 	if err != nil {
+		logError(err.Error())
 		return nil, err
 	}
 
 	result := []JDocument{}
 	for rows.Next() {
 		doc := JDocument{}
-		if err := rows.Scan(&doc.id, &doc.data); err != nil {
+		if err := rows.Scan(&doc.id, &doc.data, &doc.isDeleted); err != nil {
+			logError(err.Error())
 			return nil, err
 		}
 		result = append(result, doc)
 	}
 
 	if err := rows.Err(); err != nil {
+		logError(err.Error())
 		return nil, err
 	}
-
+	logDebug(fmt.Sprintf("Find: %d", len(result)))
 	return &result, nil
 }
 
@@ -238,7 +242,7 @@ func (source *JCollection) Remove(id int) error {
 
 	var deleteSQL string = fmt.Sprintf("DELETE FORM %s.%s WHERE id=%d;", source.Schema.Name, source.Name, id)
 
-	logInfo(deleteSQL)
+	logDebug(deleteSQL)
 	_, err := db.Exec(deleteSQL)
 	if err != nil {
 		return err

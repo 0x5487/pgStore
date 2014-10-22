@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"strconv"
 )
 
 // error handling
@@ -32,7 +33,9 @@ func toJSON(target interface{}) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(byteArry[:]), nil
+	result := string(byteArry[:])
+	//logDebug("toJson" + result)
+	return result, nil
 }
 
 func fromJSON(target interface{}, jsonString string) error {
@@ -60,4 +63,9 @@ func PadLeft(str, pad string, lenght int) string {
 			return str[0:lenght]
 		}
 	}
+}
+
+//parse
+func ToInt64(str string) (int64, error) {
+	return strconv.ParseInt(str, 10, 64)
 }

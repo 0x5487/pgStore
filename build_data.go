@@ -46,23 +46,25 @@ func build_data() {
 	PanicIf(err)
 
 	//create products
-	catalogService, err := NewCatalogService(dbLayer, jasonStore)
+	catalogService := NewCatalogService(dbLayer, jasonStore)
+
+	var sku1 = Sku{Sku: "abc001", Price: Money{90, 99}}
+	var product1 = Product{ResourceId: "men-shoe", Price: Money{91, 89}, Name: "men shoe", Skus: []Sku{sku1}}
+	product1.Collections = []int64{1}
+	_, err = catalogService.CreateProduct(product1)
 	PanicIf(err)
 
-	var sku1 = Sku{Sku: "abc001", ListPrice: Money{100, 0}, Price: Money{92, 99}}
-	var product1 = Product{ResourceId: "men-shoe", Name: "men shoe", Skus: []Sku{sku1}}
-	_, err = catalogService.InsertProduct(product1)
-	PanicIf(err)
-
-	var sku2 = Sku{Sku: "abc002", ListPrice: Money{100, 0}, Price: Money{100, 0}}
-	var sku3 = Sku{Sku: "abc003", ListPrice: Money{100, 0}, Price: Money{100, 0}}
+	var sku2 = Sku{Sku: "abc002", ListPrice: Money{92, 0}, Price: Money{93, 0}}
+	var sku3 = Sku{Sku: "abc003", ListPrice: Money{94, 0}, Price: Money{95, 0}}
 	var product2 = Product{ResourceId: "men-shirt", Name: "men shirt", Skus: []Sku{sku2, sku3}}
-	_, err = catalogService.InsertProduct(product2)
+	product2.Collections = []int64{1}
+	_, err = catalogService.CreateProduct(product2)
 	PanicIf(err)
 
 	//create collection
 	var collection1 = Collection{ResourceId: "men", Name: "men collection"}
-	_, err = catalogService.InsertCollection(collection1)
+	collection1.Products = []int64{1, 2}
+	_, err = catalogService.CreateCollection(collection1)
 
 	//create order
 

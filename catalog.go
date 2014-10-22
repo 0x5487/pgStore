@@ -8,6 +8,10 @@ type Key struct {
 	Sku string `json:"sku"`
 }
 
+type Image struct {
+	Url string `json:"url"`
+}
+
 type Collection struct {
 	Id              int64         `json:"id"`
 	ResourceId      string        `json:"resource_id"`
@@ -20,14 +24,14 @@ type Collection struct {
 	PageTitle       string        `json:"page_title"`
 	MetaDescription string        `json:"meta_description"`
 	CustomFields    []CustomField `json:"custom_fields"`
-	Products        []int         `json:"products"`
+	Products        []int64       `json:"products"`
 }
 
 type Product struct {
 	Id int64 `json:"id"`
 
 	//details
-	Name                      string `json:"name"`
+	Name                      string `json:"name" binding:"required"`
 	Content                   string `json:"content"`
 	Tags                      string `json:"tags"`
 	Vendor                    string `json:"vendor"`
@@ -50,7 +54,7 @@ type Product struct {
 	PageTitle       string `json:"page_title"`
 	MetaDescription string `json:"meta_description"`
 
-	Images       interface{}   `json:"images"`
+	Images       []Image       `json:"images"`
 	CustomFields []CustomField `json:"custom_fields"`
 	Collections  []int64       `json:"collections"`
 }
@@ -66,7 +70,7 @@ type Sku struct {
 }
 
 type Option struct {
-	Name   string   `json:"name"`
+	Label  string   `json:"label"`
 	Values []string `json:"values"`
 }
 
@@ -81,17 +85,21 @@ type CatalogService struct {
 	Store  Store
 }
 
-func NewCatalogService(dbLayer *DbLayer, store Store) (*CatalogService, error) {
+func NewCatalogService(dbLayer *DbLayer, store Store) *CatalogService {
 	schema, err := dbLayer.GetSchema(store.Name)
 	if err != nil {
-		return nil, err
+		logError(err.Error())
 	}
 
-	service := &CatalogService{dbLayer, schema, store}
-	return service, nil
+	service := new(CatalogService)
+	service.DB = dbLayer
+	service.Schema = schema
+	service.Store = store
+
+	return service
 }
 
-func (source *CatalogService) InsertProduct(product Product) (int64, error) {
+func (source *CatalogService) CreateProduct(product Product) (int64, error) {
 	//validate product
 	if len(product.Name) <= 0 {
 		return 0, errors.New("name can't be empty")
@@ -150,7 +158,7 @@ func (source *CatalogService) InsertProduct(product Product) (int64, error) {
 		return 0, err
 	}
 
-	json, err := toJSON(product)
+	json, err := toJSON(&product)
 	if err != nil {
 		return 0, err
 	}
@@ -167,7 +175,7 @@ func (source *CatalogService) InsertProduct(product Product) (int64, error) {
 	return doc.id, nil
 }
 
-func (source *CatalogService) InsertCollection(collection Collection) (int64, error) {
+func (source *CatalogService) CreateCollection(collection Collection) (int64, error) {
 	//validate collection
 	if len(collection.Name) <= 0 {
 		return 0, errors.New("name can't be empty")
@@ -234,7 +242,43 @@ func (source *CatalogService) GetCollections() (*[]Collection, error) {
 
 	result := []Collection{}
 
+	for _, doc := range *docs {
+		collection := new(Collection)
+		err = fromJSON(collection, doc.data)
+		if err != nil {
+			return nil, err
+		}
+		collection.Id = doc.id
+		result = append(result, *collection)
+	}
+
 	return &result, nil
+}
+
+func (source *CatalogService) GetCollection(collectionId int64) (*Collection, error) {
+	schema := source.Schema
+
+	collections, err := schema.GetCollection("collections")
+	if err != nil {
+		return nil, err
+	}
+
+	doc, err := collections.FindById(collectionId)
+	if err != nil {
+		return nil, err
+	}
+
+	if doc == nil {
+		return nil, nil
+	}
+
+	result := new(Collection)
+	err = fromJSON(result, doc.data)
+	if err != nil {
+		return nil, err
+	}
+	result.Id = doc.id
+	return result, nil
 }
 
 func (source *CatalogService) GetProduct(productId int64) (*Product, error) {
@@ -254,11 +298,11 @@ func (source *CatalogService) GetProduct(productId int64) (*Product, error) {
 		return nil, nil
 	}
 
-	result := Product{}
-	err = fromJSON(&result, doc.data)
+	result := new(Product)
+	err = fromJSON(result, doc.data)
 	if err != nil {
 		return nil, err
 	}
-
-	return &result, nil
+	result.Id = doc.id
+	return result, nil
 }
