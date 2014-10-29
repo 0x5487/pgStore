@@ -69,3 +69,7 @@ func PadLeft(str, pad string, lenght int) string {
 func ToInt64(str string) (int64, error) {
 	return strconv.ParseInt(str, 10, 64)
 }
+
+func ToFloat64(str string) (float64, error) {
+	return strconv.ParseFloat(str, 10)
+}

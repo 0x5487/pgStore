@@ -207,9 +207,9 @@ func (source *JCollection) Find(query ...string) (*[]JDocument, error) {
 
 	var querySQL string
 	if len(query) > 0 {
-		querySQL = fmt.Sprintf("SELECT * FROM %s.%s WHERE (data @> '%s');", source.Schema.Name, source.Name, query)
+		querySQL = fmt.Sprintf("SELECT * FROM %s.%s WHERE (data @> '%s') and (isdeleted = false);", source.Schema.Name, source.Name, query)
 	} else {
-		querySQL = fmt.Sprintf("SELECT * FROM %s.%s;", source.Schema.Name, source.Name)
+		querySQL = fmt.Sprintf("SELECT * FROM %s.%s WHERE (isdeleted = false);", source.Schema.Name, source.Name)
 	}
 
 	logDebug(querySQL)

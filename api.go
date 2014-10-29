@@ -4,6 +4,7 @@ import (
 	//"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 )
 
 func EnableApi(router *gin.Engine) {
@@ -57,30 +58,26 @@ func AUTH() gin.HandlerFunc {
 
 func getProductsEndpointV1(c *gin.Context) {
 
-	/*catalogService := c.MustGet("_catalogService").(*CatalogService)
+	catalogService := c.MustGet("_catalogService").(*CatalogService)
 
 	result, err := catalogService.GetProducts()
 	if err != nil {
-		c.JSON(500, gin.H{"message": "Internal Server Error", "status": 500})
+		c.JSON(500, gin.H{"message": "Internal Server Error"})
 		return
 	}
 
-	if result == nil {
-		c.JSON(200, result)
-		return
-	}
-
-	c.JSON(200, result)*/
+	c.JSON(200, result)
 }
 
 func getProductEndpointV1(c *gin.Context) {
+	logInfo("getting product")
 	param_productId := c.Params.ByName("productId")
-	logDebug(fmt.Sprintf("productId: %s", param_productId))
+	logDebug(fmt.Sprintf("productId param: %s", param_productId))
 
 	//validation
 	productId, err := ToInt64(param_productId)
 	if err != nil {
-		c.JSON(404, gin.H{"message": "Not Found", "status": 404})
+		c.JSON(404, gin.H{"message": "Not Found"})
 		return
 	}
 
@@ -88,7 +85,8 @@ func getProductEndpointV1(c *gin.Context) {
 
 	result, err := catalogService.GetProduct(productId)
 	if err != nil {
-		c.JSON(500, gin.H{"message": "Internal Server Error", "status": 500})
+		logDebug(err.Error())
+		c.JSON(500, gin.H{"message": "Internal Server Error"})
 		return
 	}
 
@@ -96,11 +94,31 @@ func getProductEndpointV1(c *gin.Context) {
 }
 
 func createProductEndpointV1(c *gin.Context) {
-	var productJSON Product
+	logInfo("creating product")
 
-	c.Bind(&productJSON)
+	//bind JSON
+	var product = Product{}
+	if !c.BindWith(&product, binding.JSON) {
+		c.JSON(400, gin.H{"message": "json format is invalid."})
+		return
+	}
 
-	c.JSON(200, gin.H{"state": "ok"})
+	//validation
+	if len(product.Name) == 0 {
+		c.JSON(400, gin.H{"message": "name is required"})
+		return
+	}
+
+	//act
+	catalogService := c.MustGet("_catalogService").(*CatalogService)
+	productId, err := catalogService.CreateProduct(product)
+	if err != nil {
+		logDebug(err.Error())
+		c.JSON(500, gin.H{"message": "Internal Server Error"})
+		return
+	}
+
+	c.JSON(201, gin.H{"Location": fmt.Sprintf("/products/%d", productId)})
 }
 
 func updateProductEndpointV1(c *gin.Context) {
@@ -146,7 +164,30 @@ func getCollectionEndpointV1(c *gin.Context) {
 }
 
 func createCollectionEndpointV1(c *gin.Context) {
+	logInfo("creating collection")
 
+	//bind JSON
+	var collection = Collection{}
+	if !c.BindWith(&collection, binding.JSON) {
+		c.Abort(400)
+		return
+	}
+
+	//validation
+	if len(collection.Name) == 0 {
+		c.JSON(400, gin.H{"message": "name is required"})
+		return
+	}
+
+	catalogService := c.MustGet("_catalogService").(*CatalogService)
+	collectionId, err := catalogService.CreateCollection(collection)
+	if err != nil {
+		logDebug(err.Error())
+		c.JSON(500, gin.H{"message": "Internal Server Error"})
+		return
+	}
+
+	c.JSON(201, gin.H{"Location": fmt.Sprintf("/collections/%d", collectionId)})
 }
 
 func updateCollectionEndpointV1(c *gin.Context) {

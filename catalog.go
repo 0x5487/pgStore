@@ -2,7 +2,13 @@ package main
 
 import (
 	"errors"
+	"fmt"
 )
+
+type ValidationError struct {
+	Message    string                 `json:"message"`
+	ModelState map[string]interface{} `json:"ModelState"`
+}
 
 type Key struct {
 	Sku string `json:"sku"`
@@ -14,13 +20,13 @@ type Image struct {
 
 type Collection struct {
 	Id              int64         `json:"id"`
-	ResourceId      string        `json:"resource_id"`
 	Name            string        `json:"name"`
 	IsVisible       bool          `json:"is_visible"`
 	Content         string        `json:"content"`
 	Image           interface{}   `json:"image"`
 	Tags            []string      `json:"tags"`
 	SortOrder       int           `json:"sort_order"`
+	UrlName         string        `json:"url_name"`
 	PageTitle       string        `json:"page_title"`
 	MetaDescription string        `json:"meta_description"`
 	CustomFields    []CustomField `json:"custom_fields"`
@@ -31,26 +37,26 @@ type Product struct {
 	Id int64 `json:"id"`
 
 	//details
-	Name                      string `json:"name" binding:"required"`
-	Content                   string `json:"content"`
-	Tags                      string `json:"tags"`
-	Vendor                    string `json:"vendor"`
-	ListPrice                 Money  `json:"list_price"`
-	Price                     Money  `json:"price"`
-	Weight                    int    `json:"weight"`
-	SortOrder                 int    `json:"sort_order"`
-	IsPurchasable             bool   `json:"is_purchaseable"`
-	IsVisible                 bool   `json:"is_visible"`
-	IsBackOrderEnabled        bool   `json:"is_backorder_enabled"`
-	IsPreOrderEnabled         bool   `json:"is_preorder_enabled"`
-	IsShippingAddressRequired bool   `json:"is_shipping_address_required"`
+	Name                      string   `json:"name"`
+	Content                   string   `json:"content"`
+	Tags                      []string `json:"tags"`
+	Vendor                    string   `json:"vendor"`
+	ListPrice                 Money    `json:"list_price"`
+	Price                     Money    `json:"price"`
+	Weight                    int      `json:"weight"`
+	SortOrder                 int      `json:"sort_order"`
+	IsPurchasable             bool     `json:"is_purchaseable"`
+	IsVisible                 bool     `json:"is_visible"`
+	IsBackOrderEnabled        bool     `json:"is_backorder_enabled"`
+	IsPreOrderEnabled         bool     `json:"is_preorder_enabled"`
+	IsShippingAddressRequired bool     `json:"is_shipping_address_required"`
 
 	//sku
 	Skus    []Sku    `json:"skus"`
 	Options []Option `json:"options"`
 
 	//seo
-	ResourceId      string `json:"resource_id"`
+	UrlName         string `json:"url_name"`
 	PageTitle       string `json:"page_title"`
 	MetaDescription string `json:"meta_description"`
 
@@ -105,9 +111,7 @@ func (source *CatalogService) CreateProduct(product Product) (int64, error) {
 		return 0, errors.New("name can't be empty")
 	}
 
-	if len(product.Skus) <= 0 {
-		return 0, errors.New("no skus with the product")
-	} else {
+	if len(product.Skus) > 0 {
 		for _, sku := range product.Skus {
 			if len(sku.Sku) <= 0 {
 				return 0, errors.New("The sku field can't be empty")
@@ -158,12 +162,16 @@ func (source *CatalogService) CreateProduct(product Product) (int64, error) {
 		return 0, err
 	}
 
-	json, err := toJSON(&product)
+	productJSON, err := toJSON(&product)
 	if err != nil {
 		return 0, err
 	}
+
+	msg_log := fmt.Sprintf("[Insert Product] %s", productJSON)
+	logDebug(msg_log)
+
 	doc := new(JDocument)
-	doc.data = json
+	doc.data = productJSON
 
 	err = products.Insert(doc)
 	if err != nil {
@@ -175,13 +183,68 @@ func (source *CatalogService) CreateProduct(product Product) (int64, error) {
 	return doc.id, nil
 }
 
+func (source *CatalogService) GetProducts() (*[]Product, error) {
+	schema := source.Schema
+
+	productsCollection, err := schema.GetCollection("products")
+	if err != nil {
+		return nil, err
+	}
+
+	docs, err := productsCollection.Find()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(*docs) <= 0 {
+		return nil, nil
+	}
+
+	result := []Product{}
+
+	for _, doc := range *docs {
+		product := new(Product)
+		err = fromJSON(product, doc.data)
+		if err != nil {
+			return nil, err
+		}
+		product.Id = doc.id
+		result = append(result, *product)
+	}
+
+	return &result, nil
+}
+
+func (source *CatalogService) GetProduct(productId int64) (*Product, error) {
+	schema := source.Schema
+
+	products, err := schema.GetCollection("products")
+	if err != nil {
+		return nil, err
+	}
+
+	doc, err := products.FindById(productId)
+	if err != nil {
+		return nil, err
+	}
+
+	if doc == nil {
+		return nil, nil
+	}
+
+	result := new(Product)
+	err = fromJSON(result, doc.data)
+	if err != nil {
+		return nil, err
+	}
+	result.Id = doc.id
+	return result, nil
+}
+
 func (source *CatalogService) CreateCollection(collection Collection) (int64, error) {
 	//validate collection
 	if len(collection.Name) <= 0 {
 		return 0, errors.New("name can't be empty")
-	}
-	if len(collection.ResourceId) <= 0 {
-		return 0, errors.New("resource_id can't be empty")
 	}
 
 	//insert the collection
@@ -273,32 +336,6 @@ func (source *CatalogService) GetCollection(collectionId int64) (*Collection, er
 	}
 
 	result := new(Collection)
-	err = fromJSON(result, doc.data)
-	if err != nil {
-		return nil, err
-	}
-	result.Id = doc.id
-	return result, nil
-}
-
-func (source *CatalogService) GetProduct(productId int64) (*Product, error) {
-	schema := source.Schema
-
-	products, err := schema.GetCollection("products")
-	if err != nil {
-		return nil, err
-	}
-
-	doc, err := products.FindById(productId)
-	if err != nil {
-		return nil, err
-	}
-
-	if doc == nil {
-		return nil, nil
-	}
-
-	result := new(Product)
 	err = fromJSON(result, doc.data)
 	if err != nil {
 		return nil, err

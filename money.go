@@ -2,6 +2,8 @@ package main
 
 import (
 	//"encoding/json"
+	//"fmt"
+	"errors"
 	"strconv"
 	"strings"
 )
@@ -28,11 +30,31 @@ func (source *Money) UnmarshalJSON(b []byte) error {
 	msg := string(b[:])
 
 	if len(msg) > 1 {
+
 		money := strings.Split(msg, ".")
 
-		if len(money) == 2 {
-			source.Number, _ = ToInt64(money[0])
-			source.Points, _ = ToInt64(money[1])
+		switch len(money) {
+		case 1:
+			number, err := ToInt64(msg)
+			if err != nil {
+				return errors.New("invalid format for money")
+			}
+			source.Number = number
+			source.Points = 0
+			break
+		case 2:
+			number, err := ToInt64(money[0])
+			if err != nil {
+				return errors.New("invalid format for money")
+			}
+			digital, err := ToInt64(money[1])
+			if err != nil {
+				return errors.New("invalid format for money")
+			}
+
+			source.Number = number
+			source.Points = digital
+			break
 		}
 
 	}
