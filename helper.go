@@ -6,6 +6,16 @@ import (
 	"strconv"
 )
 
+type appError struct {
+	//Error   error
+	Message string
+	Code    int
+}
+
+func (source appError) Error() string {
+	return source.Message
+}
+
 // error handling
 func PanicIf(err error) {
 	if err != nil {
@@ -16,15 +26,15 @@ func PanicIf(err error) {
 
 // logging
 func logError(message string) {
-	log.Println("[Error] " + message)
+	log.Println("[Error]" + message)
 }
 
 func logInfo(message string) {
-	log.Println("[Info] " + message)
+	log.Println("[Info]" + message)
 }
 
 func logDebug(message string) {
-	log.Println("[Debug] " + message)
+	log.Println("[Debug]" + message)
 }
 
 //json

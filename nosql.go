@@ -151,7 +151,7 @@ func (source *JCollection) CreateIndex(indexName string, isUnique bool, argu str
 func (source *JCollection) Insert(doc *JDocument) error {
 	var db = source.Schema.DB.Conn.(DbWrapper)
 
-	var insertSQL = fmt.Sprintf("INSERT INTO %s.%s (data, isDeleted) VALUES ($1, false) RETURNING id", source.Schema.Name, source.Name)
+	var insertSQL = fmt.Sprintf("INSERT INTO %s.%s (data, isDeleted) VALUES ($1, false) RETURNING id;", source.Schema.Name, source.Name)
 	logDebug(insertSQL)
 
 	err := db.QueryRow(insertSQL, doc.data).Scan(&doc.id)
@@ -207,12 +207,13 @@ func (source *JCollection) Find(query ...string) (*[]JDocument, error) {
 
 	var querySQL string
 	if len(query) > 0 {
-		querySQL = fmt.Sprintf("SELECT * FROM %s.%s WHERE (data @> '%s') and (isdeleted = false);", source.Schema.Name, source.Name, query)
+		querySQL = fmt.Sprintf("SELECT * FROM %s.%s WHERE %s AND (isdeleted = false);", source.Schema.Name, source.Name, query)
 	} else {
 		querySQL = fmt.Sprintf("SELECT * FROM %s.%s WHERE (isdeleted = false);", source.Schema.Name, source.Name)
 	}
 
-	logDebug(querySQL)
+	msg_log := fmt.Sprint("[find] %s", querySQL)
+	logDebug(msg_log)
 	rows, err := db.Query(querySQL)
 	if err != nil {
 		logError(err.Error())
@@ -240,7 +241,7 @@ func (source *JCollection) Find(query ...string) (*[]JDocument, error) {
 func (source *JCollection) Remove(id int) error {
 	var db = source.Schema.DB.Conn.(DbWrapper)
 
-	var deleteSQL string = fmt.Sprintf("DELETE FORM %s.%s WHERE id=%d;", source.Schema.Name, source.Name, id)
+	deleteSQL := fmt.Sprintf("DELETE FORM %s.%s WHERE id=%d; AND (isdeleted = false);", source.Schema.Name, source.Name, id)
 
 	logDebug(deleteSQL)
 	_, err := db.Exec(deleteSQL)
@@ -249,4 +250,29 @@ func (source *JCollection) Remove(id int) error {
 	}
 
 	return nil
+}
+
+func (source *JCollection) Count(query ...string) (int, error) {
+	var db = source.Schema.DB.Conn.(DbWrapper)
+
+	var countSQL string
+
+	if len(query) > 0 {
+		countSQL = fmt.Sprintf("SELECT count(id) as count FROM %s.%s WHERE %s AND (isdeleted = false);", source.Schema.Name, source.Name, query[0])
+	} else {
+		countSQL = fmt.Sprintf("SELECT count(id) as count FROM %s.%s;", source.Schema.Name, source.Name)
+	}
+
+	logDebug(fmt.Sprintf("[SQL][COUNT] %s", countSQL))
+
+	var result int
+
+	err := db.QueryRow(countSQL).Scan(&result)
+	if err != nil && err != sql.ErrNoRows {
+		return 0, err
+	} else if err != nil && err == sql.ErrNoRows {
+		return 0, nil
+	}
+
+	return result, nil
 }

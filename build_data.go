@@ -45,9 +45,13 @@ func build_data() {
 	_, err = adminService.CreateStore(jasonStore)
 	PanicIf(err)
 
-	//create products
 	catalogService := NewCatalogService(dbLayer, jasonStore)
 
+	//create collection
+	var collection1 = Collection{UrlName: "men", Name: "men collection"}
+	_, err = catalogService.CreateCollection(collection1)
+
+	//create products
 	var sku1 = Sku{Sku: "abc001", Price: Money{90, 99}}
 	var product1 = Product{UrlName: "men-shoe", Price: Money{91, 89}, Name: "men shoe", Skus: []Sku{sku1}}
 	product1.Collections = []int64{1}
@@ -60,11 +64,6 @@ func build_data() {
 	product2.Collections = []int64{1}
 	_, err = catalogService.CreateProduct(product2)
 	PanicIf(err)
-
-	//create collection
-	var collection1 = Collection{UrlName: "men", Name: "men collection"}
-	collection1.Products = []int64{1, 2}
-	_, err = catalogService.CreateCollection(collection1)
 
 	//create order
 

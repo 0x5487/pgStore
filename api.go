@@ -13,7 +13,7 @@ func EnableApi(router *gin.Engine) {
 
 	v1 := router.Group("/api/v1")
 	{
-		v1.GET("/products/:productId", getProductEndpointV1)
+		v1.GET("/products/:productId", getProductEndpointV1, getProductCountV1, notFound)
 		v1.GET("/products", getProductsEndpointV1)
 		v1.POST("/products", createProductEndpointV1)
 		v1.PUT("/products/:productId", updateProductEndpointV1)
@@ -32,6 +32,12 @@ func EnableApi(router *gin.Engine) {
 		v1.PUT("/orders/:orderId", updateOrderEndpointV1)
 		v1.DELETE("/orders/:orderId", deleteOrderEndpointV1)
 	}
+
+}
+
+func notFound(c *gin.Context) {
+	logInfo("[Api] Not Found")
+	c.JSON(404, gin.H{"message": "Not Found"})
 }
 
 func AUTH() gin.HandlerFunc {
@@ -56,12 +62,62 @@ func AUTH() gin.HandlerFunc {
 	}
 }
 
+func getProductCountV1(c *gin.Context) {
+	logInfo("[Api][start] getProductCountV1")
+
+	param_count := c.Params.ByName("productId")
+	if len(param_count) > 0 && param_count != "count" {
+		logInfo("[Api][Pass] getProductCountV1")
+		c.Next()
+		return
+	}
+
+	var collectionId_str string
+
+	//get collectionId from querystring
+	if len(c.Request.URL.Query()["collection"]) > 0 {
+		collectionId_str = c.Request.URL.Query()["collection"][0]
+	}
+
+	catalogService := c.MustGet("_catalogService").(*CatalogService)
+
+	var result int
+	var err error
+	if len(collectionId_str) > 0 {
+		logInfo(fmt.Sprintf("collectionid: %s", collectionId_str))
+
+		collectionId, err := ToInt64(collectionId_str)
+		if err != nil {
+			logError(err.Error())
+			c.JSON(404, gin.H{"message": "Not Found"})
+			c.Fail(404, err)
+		}
+
+		result, err = catalogService.GetProductCount(collectionId)
+	} else {
+		result, err = catalogService.GetProductCount()
+	}
+
+	if err != nil {
+		logError(err.Error())
+		c.JSON(500, gin.H{"message": "Internal Server Error"})
+		c.Fail(500, err)
+		return
+	}
+
+	c.JSON(200, result)
+	c.Abort(-1)
+	logInfo("[Api][end] getProductCountV1")
+}
+
 func getProductsEndpointV1(c *gin.Context) {
+	logInfo("[API]getProductsEndpointV1")
 
 	catalogService := c.MustGet("_catalogService").(*CatalogService)
 
 	result, err := catalogService.GetProducts()
 	if err != nil {
+		logError(err.Error())
 		c.JSON(500, gin.H{"message": "Internal Server Error"})
 		return
 	}
@@ -70,14 +126,16 @@ func getProductsEndpointV1(c *gin.Context) {
 }
 
 func getProductEndpointV1(c *gin.Context) {
-	logInfo("getting product")
+	logInfo("[Api] getProductEndpointV1")
+
 	param_productId := c.Params.ByName("productId")
-	logDebug(fmt.Sprintf("productId param: %s", param_productId))
+	logInfo(fmt.Sprintf(" productId param: %s", param_productId))
 
 	//validation
 	productId, err := ToInt64(param_productId)
 	if err != nil {
-		c.JSON(404, gin.H{"message": "Not Found"})
+		logInfo("[Api][Pass] getProductEndpointV1")
+		c.Next()
 		return
 	}
 
@@ -85,16 +143,18 @@ func getProductEndpointV1(c *gin.Context) {
 
 	result, err := catalogService.GetProduct(productId)
 	if err != nil {
-		logDebug(err.Error())
+		logError(err.Error())
 		c.JSON(500, gin.H{"message": "Internal Server Error"})
+		c.Fail(500, err)
 		return
 	}
 
 	c.JSON(200, result)
+	c.Abort(-1)
 }
 
 func createProductEndpointV1(c *gin.Context) {
-	logInfo("creating product")
+	logInfo("[Api]createProductEndpointV1")
 
 	//bind JSON
 	var product = Product{}
@@ -113,7 +173,15 @@ func createProductEndpointV1(c *gin.Context) {
 	catalogService := c.MustGet("_catalogService").(*CatalogService)
 	productId, err := catalogService.CreateProduct(product)
 	if err != nil {
-		logDebug(err.Error())
+		logError(err.Error())
+
+		if v, ok := err.(appError); ok {
+			if v.Code < 100 {
+				c.JSON(500, gin.H{"message": v.Error()})
+				return
+			}
+		}
+
 		c.JSON(500, gin.H{"message": "Internal Server Error"})
 		return
 	}
@@ -134,6 +202,7 @@ func getCollectionsEndpointV1(c *gin.Context) {
 
 	result, err := catalogService.GetCollections()
 	if err != nil {
+		logError(err.Error())
 		c.JSON(500, gin.H{"message": "Internal Server Error", "status": 500})
 		return
 	}
@@ -148,6 +217,7 @@ func getCollectionEndpointV1(c *gin.Context) {
 	//validation
 	collectionId, err := ToInt64(param_collectionId)
 	if err != nil {
+		logError(err.Error())
 		c.JSON(404, gin.H{"message": "Not Found", "status": 404})
 		return
 	}
@@ -156,6 +226,7 @@ func getCollectionEndpointV1(c *gin.Context) {
 
 	result, err := catalogService.GetCollection(collectionId)
 	if err != nil {
+		logError(err.Error())
 		c.JSON(500, gin.H{"message": "Internal Server Error", "status": 500})
 		return
 	}
@@ -182,7 +253,7 @@ func createCollectionEndpointV1(c *gin.Context) {
 	catalogService := c.MustGet("_catalogService").(*CatalogService)
 	collectionId, err := catalogService.CreateCollection(collection)
 	if err != nil {
-		logDebug(err.Error())
+		logError(err.Error())
 		c.JSON(500, gin.H{"message": "Internal Server Error"})
 		return
 	}

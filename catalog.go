@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 type ValidationError struct {
@@ -16,6 +18,10 @@ type Key struct {
 
 type Image struct {
 	Url string `json:"url"`
+}
+
+type IFilter interface {
+	getSQL() string
 }
 
 type Collection struct {
@@ -91,6 +97,26 @@ type CatalogService struct {
 	Store  Store
 }
 
+type CollectionFilter struct {
+	Ids []int64
+}
+
+func (source *CollectionFilter) getSQL() string {
+	var sql string
+
+	if source.Ids != nil {
+		var all_ids []string
+		for _, value := range source.Ids {
+			id_str := strconv.FormatInt(value, 10)
+			all_ids = append(all_ids, id_str)
+		}
+		ids_str := strings.Join(all_ids, ",")
+		sql += fmt.Sprintf("( id in %s)", ids_str)
+	}
+
+	return sql
+}
+
 func NewCatalogService(dbLayer *DbLayer, store Store) *CatalogService {
 	schema, err := dbLayer.GetSchema(store.Name)
 	if err != nil {
@@ -105,6 +131,25 @@ func NewCatalogService(dbLayer *DbLayer, store Store) *CatalogService {
 	return service
 }
 
+func (source *CatalogService) GetProductCount(collectionIds ...int64) (int, error) {
+	schema := source.Schema
+
+	productsCollection, err := schema.GetCollection("products")
+	if err != nil {
+		return 0, err
+	}
+
+	if len(collectionIds) > 0 {
+		collectionId := collectionIds[0]
+		countSQL := fmt.Sprintf("(data @> '{\"collections\":[%d]}')", collectionId)
+		return productsCollection.Count(countSQL)
+	}
+
+	return productsCollection.Count()
+}
+
+// Error Code
+// 1: collection is not existing
 func (source *CatalogService) CreateProduct(product Product) (int64, error) {
 	//validate product
 	if len(product.Name) <= 0 {
@@ -116,6 +161,20 @@ func (source *CatalogService) CreateProduct(product Product) (int64, error) {
 			if len(sku.Sku) <= 0 {
 				return 0, errors.New("The sku field can't be empty")
 			}
+		}
+	}
+
+	for _, value := range product.Collections {
+		collection, err := source.GetCollection(value)
+		if err != nil {
+			return 0, err
+		}
+
+		if collection == nil {
+			vErr := appError{}
+			vErr.Code = 1
+			vErr.Message = fmt.Sprintf("collection:%d is not existing", value)
+			return 0, vErr
 		}
 	}
 
@@ -286,7 +345,7 @@ func (source *CatalogService) CreateCollection(collection Collection) (int64, er
 	return doc.id, nil
 }
 
-func (source *CatalogService) GetCollections() (*[]Collection, error) {
+func (source *CatalogService) GetCollections(filters ...IFilter) (*[]Collection, error) {
 	schema := source.Schema
 
 	collections, err := schema.GetCollection("collections")
@@ -294,7 +353,15 @@ func (source *CatalogService) GetCollections() (*[]Collection, error) {
 		return nil, err
 	}
 
-	docs, err := collections.Find()
+	docs := new([]JDocument)
+
+	if len(filters) > 0 {
+		filter := filters[0]
+		docs, err = collections.Find(filter.getSQL())
+	} else {
+		docs, err = collections.Find()
+	}
+
 	if err != nil {
 		return nil, err
 	}
