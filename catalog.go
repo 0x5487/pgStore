@@ -242,6 +242,136 @@ func (source *CatalogService) CreateProduct(product Product) (int64, error) {
 	return doc.id, nil
 }
 
+// Error Code
+// 1: product doesn't exist
+// 2: collection doesn't exist
+// 3: variation has already existed
+func (source *CatalogService) UpdateProduct(product Product) error {
+	//validate product
+	if len(product.Name) <= 0 {
+		return errors.New("name can't be empty")
+	}
+
+	vErr := appError{}
+	oldProduct, err := source.GetProduct(product.Id)
+	if err != nil {
+		return err
+	}
+
+	if oldProduct == nil {
+		vErr.Code = 1
+		vErr.Message = fmt.Sprintf("product:%d doesn't exist", product.Id)
+		return vErr
+	}
+
+	for _, value := range product.Collections {
+		collection, err := source.GetCollection(value)
+		if err != nil {
+			return err
+		}
+
+		if collection == nil {
+			vErr.Code = 2
+			vErr.Message = fmt.Sprintf("collection:%d doesn't exist", value)
+			return vErr
+		}
+	}
+
+	db, err := GetDB()
+	if err != nil {
+		return err
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	var dbLayer = new(DbLayer)
+	dbLayer.Conn = tx
+
+	schema := &JSchema{DB: dbLayer, Name: source.Store.Name}
+	unique_skus, err := schema.GetCollection("unique_skus")
+	if err != nil {
+		return err
+	}
+
+	for _, sku := range product.Skus {
+		if len(sku.Sku) <= 0 {
+			tx.Rollback()
+			return errors.New("The sku field can't be empty")
+		}
+
+		var isFound bool
+		for _, old_variation := range oldProduct.Skus {
+			if sku.Sku == old_variation.Sku {
+				isFound = true
+			}
+		}
+
+		if isFound == false {
+			findSQL := fmt.Sprintf("{\"sku\":\"%s\"}", sku.Sku)
+			target, err := unique_skus.FindOne(findSQL)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+
+			if target != nil {
+				tx.Rollback()
+				vErr.Code = 3
+				vErr.Message = fmt.Sprintf("variation:%s has already existed", sku.Sku)
+				return vErr
+			}
+
+			key := Key{Sku: sku.Sku}
+			json, err := toJSON(key)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			doc := new(JDocument)
+			doc.data = json
+
+			err = unique_skus.Insert(doc)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+
+		}
+	}
+
+	//update the product
+	products, err := schema.GetCollection("products")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	productJSON, err := toJSON(&product)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	msg_log := fmt.Sprintf("[Update Product] %s", productJSON)
+	logDebug(msg_log)
+
+	doc := new(JDocument)
+	doc.id = product.Id
+	doc.data = productJSON
+
+	err = products.Update(doc)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	tx.Commit()
+	return nil
+}
+
 func (source *CatalogService) GetProducts() (*[]Product, error) {
 	schema := source.Schema
 

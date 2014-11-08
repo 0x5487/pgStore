@@ -3,6 +3,7 @@ package main
 import (
 	//"errors"
 	"fmt"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 )
@@ -176,10 +177,8 @@ func createProductEndpointV1(c *gin.Context) {
 		logError(err.Error())
 
 		if v, ok := err.(appError); ok {
-			if v.Code < 100 {
-				c.JSON(500, gin.H{"message": v.Error()})
-				return
-			}
+			c.JSON(500, gin.H{"message": v.Error()})
+			return
 		}
 
 		c.JSON(500, gin.H{"message": "Internal Server Error"})
@@ -190,7 +189,37 @@ func createProductEndpointV1(c *gin.Context) {
 }
 
 func updateProductEndpointV1(c *gin.Context) {
+	logInfo("[Api]updateProductEndpointV1")
 
+	//bind JSON
+	var product = Product{}
+	if !c.BindWith(&product, binding.JSON) {
+		c.JSON(400, gin.H{"message": "json format is invalid."})
+		return
+	}
+
+	//validation
+	if len(product.Name) == 0 {
+		c.JSON(400, gin.H{"message": "name is required"})
+		return
+	}
+
+	//act
+	catalogService := c.MustGet("_catalogService").(*CatalogService)
+	err := catalogService.UpdateProduct(product)
+	if err != nil {
+		logError(err.Error())
+
+		if v, ok := err.(appError); ok {
+			c.JSON(500, gin.H{"message": v.Error()})
+			return
+		}
+
+		c.JSON(500, gin.H{"message": "Internal Server Error"})
+		return
+	}
+
+	c.JSON(200, "")
 }
 
 func deleteProductEndpointV1(c *gin.Context) {

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+
 	_ "github.com/lib/pq"
 )
 
@@ -148,18 +149,6 @@ func (source *JCollection) CreateIndex(indexName string, isUnique bool, argu str
 	return nil
 }
 
-func (source *JCollection) Insert(doc *JDocument) error {
-	var db = source.Schema.DB.Conn.(DbWrapper)
-
-	var insertSQL = fmt.Sprintf("INSERT INTO %s.%s (data, isDeleted) VALUES ($1, false) RETURNING id;", source.Schema.Name, source.Name)
-	logDebug(insertSQL)
-
-	err := db.QueryRow(insertSQL, doc.data).Scan(&doc.id)
-	PanicIf(err)
-
-	return nil
-}
-
 func (source *JCollection) FindById(id int64) (*JDocument, error) {
 	var db = source.Schema.DB.Conn.(DbWrapper)
 
@@ -186,7 +175,7 @@ func (source *JCollection) FindOne(query string) (*JDocument, error) {
 
 	var querySQL string = fmt.Sprintf("SELECT * FROM %s.%s WHERE (data @> '%s') limit 1;", source.Schema.Name, source.Name, query)
 
-	logDebug(querySQL)
+	logDebug("[SQL][FindOne]" + querySQL)
 
 	result := new(JDocument)
 
@@ -238,20 +227,6 @@ func (source *JCollection) Find(query ...string) (*[]JDocument, error) {
 	return &result, nil
 }
 
-func (source *JCollection) Remove(id int) error {
-	var db = source.Schema.DB.Conn.(DbWrapper)
-
-	deleteSQL := fmt.Sprintf("DELETE FORM %s.%s WHERE id=%d; AND (isdeleted = false);", source.Schema.Name, source.Name, id)
-
-	logDebug(deleteSQL)
-	_, err := db.Exec(deleteSQL)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (source *JCollection) Count(query ...string) (int, error) {
 	var db = source.Schema.DB.Conn.(DbWrapper)
 
@@ -275,4 +250,45 @@ func (source *JCollection) Count(query ...string) (int, error) {
 	}
 
 	return result, nil
+}
+
+func (source *JCollection) Insert(doc *JDocument) error {
+	var db = source.Schema.DB.Conn.(DbWrapper)
+
+	var insertSQL = fmt.Sprintf("INSERT INTO %s.%s (data, isDeleted) VALUES ($1, false) RETURNING id;", source.Schema.Name, source.Name)
+	logDebug(insertSQL)
+
+	err := db.QueryRow(insertSQL, doc.data).Scan(&doc.id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (source *JCollection) Update(doc *JDocument) error {
+	var db = source.Schema.DB.Conn.(DbWrapper)
+
+	var updateSQL = fmt.Sprintf("UPDATE %s.%s SET data = $1, isDeleted = false WHERE id = $2;", source.Schema.Name, source.Name)
+	logDebug(updateSQL)
+	_, err := db.Exec(updateSQL, doc.data, doc.id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (source *JCollection) Remove(id int) error {
+	var db = source.Schema.DB.Conn.(DbWrapper)
+
+	deleteSQL := fmt.Sprintf("DELETE FORM %s.%s WHERE (id=%d) AND (isdeleted = false);", source.Schema.Name, source.Name, id)
+
+	logDebug(deleteSQL)
+	_, err := db.Exec(deleteSQL)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
