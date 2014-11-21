@@ -40,7 +40,8 @@ type Collection struct {
 }
 
 type Product struct {
-	Id int64 `json:"id"`
+	Id     int64 `json:"id"`
+	TypeId int   `json:"type_id"` //1: digital 2:physical
 
 	//details
 	Name                      string   `json:"name"`
@@ -72,13 +73,18 @@ type Product struct {
 }
 
 type Sku struct {
-	Sku                   string `json:"sku"`
-	ListPrice             Money  `json:"list_price"`
-	Price                 Money  `json:"price"`
-	SortOrder             int    `json:"sort_order"`
-	InventoryQuantity     int    `json:"inventory_quantity"`
-	ManageInventoryMethod int    `json:"manage_inventory_method"`
-	Weight                int    `json:"weight"`
+	Sku                   string        `json:"sku"`
+	ListPrice             Money         `json:"list_price"`
+	ListPriceWithTax      Money         `json:"list_price_with_tax"`
+	ListPriceWithoutTax   Money         `json:"list_price_without_tax"`
+	Price                 Money         `json:"price"`
+	PriceWithTax          Money         `json:"price_with_tax"`
+	PriceWithoutTax       Money         `json:"price_without_tax"`
+	SortOrder             int           `json:"sort_order"`
+	InventoryQuantity     int           `json:"inventory_quantity"`
+	ManageInventoryMethod int           `json:"manage_inventory_method"`
+	Weight                float64       `json:"weight"`
+	CustomFields          []CustomField `json:"custom_fields"`
 }
 
 type Option struct {

@@ -6,7 +6,8 @@ import (
 )
 
 type Store struct {
-	Name string `json:"name"`
+	Name    string  `json:"name"`
+	TaxRate float64 `json:"tax_rate"`
 }
 
 type AdminService struct {
