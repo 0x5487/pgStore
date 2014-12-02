@@ -32,7 +32,7 @@ type Collection struct {
 	Image           interface{}   `json:"image"`
 	Tags            []string      `json:"tags"`
 	SortOrder       int           `json:"sort_order"`
-	UrlName         string        `json:"url_name"`
+	Permalink       string        `json:"permalink"`
 	PageTitle       string        `json:"page_title"`
 	MetaDescription string        `json:"meta_description"`
 	CustomFields    []CustomField `json:"custom_fields"`
@@ -59,11 +59,11 @@ type Product struct {
 	IsShippingAddressRequired bool     `json:"is_shipping_address_required"`
 
 	//sku
-	Skus    []Sku    `json:"skus"`
-	Options []Option `json:"options"`
+	Variations []Variation `json:"variations"`
+	Options    []Option    `json:"options"`
 
 	//seo
-	UrlName         string `json:"url_name"`
+	Permalink       string `json:"permalink"`
 	PageTitle       string `json:"page_title"`
 	MetaDescription string `json:"meta_description"`
 
@@ -72,7 +72,7 @@ type Product struct {
 	Collections  []int64       `json:"collections"`
 }
 
-type Sku struct {
+type Variation struct {
 	Sku                   string        `json:"sku"`
 	ListPrice             Money         `json:"list_price"`
 	ListPriceWithTax      Money         `json:"list_price_with_tax"`
