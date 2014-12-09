@@ -41,7 +41,7 @@ type Collection struct {
 
 type Product struct {
 	Id     int64 `json:"id"`
-	TypeId int   `json:"type_id"` //1: digital 2:physical
+	TypeId int   `json:"type_id"` //1: digital 2:physical 3:combine
 
 	//details
 	Name                      string   `json:"name"`
@@ -49,13 +49,17 @@ type Product struct {
 	Tags                      []string `json:"tags"`
 	Vendor                    string   `json:"vendor"`
 	ListPrice                 Money    `json:"list_price"`
+	ListPriceWithTax          Money    `json:"list_price_with_tax"`
+	ListPriceWithoutTax       Money    `json:"list_price_without_tax"`
 	Price                     Money    `json:"price"`
+	PriceWithTax              Money    `json:"price_with_tax"`
+	PriceWithoutTax           Money    `json:"price_without_tax"`
 	Weight                    int      `json:"weight"`
 	SortOrder                 int      `json:"sort_order"`
 	IsPurchasable             bool     `json:"is_purchaseable"`
 	IsVisible                 bool     `json:"is_visible"`
-	IsBackOrderEnabled        bool     `json:"is_backorder_enabled"`
-	IsPreOrderEnabled         bool     `json:"is_preorder_enabled"`
+	IsBackOrderable           bool     `json:"is_backorderable"`
+	IsPreOrderable            bool     `json:"is_preorderable"`
 	IsShippingAddressRequired bool     `json:"is_shipping_address_required"`
 
 	//sku
@@ -73,18 +77,21 @@ type Product struct {
 }
 
 type Variation struct {
-	Sku                   string        `json:"sku"`
-	ListPrice             Money         `json:"list_price"`
-	ListPriceWithTax      Money         `json:"list_price_with_tax"`
-	ListPriceWithoutTax   Money         `json:"list_price_without_tax"`
-	Price                 Money         `json:"price"`
-	PriceWithTax          Money         `json:"price_with_tax"`
-	PriceWithoutTax       Money         `json:"price_without_tax"`
-	SortOrder             int           `json:"sort_order"`
-	InventoryQuantity     int           `json:"inventory_quantity"`
-	ManageInventoryMethod int           `json:"manage_inventory_method"`
-	Weight                float64       `json:"weight"`
-	CustomFields          []CustomField `json:"custom_fields"`
+	Id                        int64         `json:"id"`
+	Sku                       string        `json:"sku"`
+	ListPrice                 Money         `json:"list_price"`
+	ListPriceWithTax          Money         `json:"list_price_with_tax"`
+	ListPriceWithoutTax       Money         `json:"list_price_without_tax"`
+	Price                     Money         `json:"price"`
+	PriceWithTax              Money         `json:"price_with_tax"`
+	PriceWithoutTax           Money         `json:"price_without_tax"`
+	IsShippingAddressRequired bool          `json:"is_shipping_address_required"`
+	Weight                    float64       `json:"weight"`
+	SortOrder                 int           `json:"sort_order"`
+	IsBackOrderable           bool          `json:"is_backorderable"`
+	IsPreOrderable            bool          `json:"is_preorderable"`
+	Images                    []Image       `json:"images"`
+	CustomFields              []CustomField `json:"custom_fields"`
 }
 
 type Option struct {
@@ -162,8 +169,8 @@ func (source *CatalogService) CreateProduct(product Product) (int64, error) {
 		return 0, errors.New("name can't be empty")
 	}
 
-	if len(product.Skus) > 0 {
-		for _, sku := range product.Skus {
+	if len(product.Variations) > 0 {
+		for _, sku := range product.Variations {
 			if len(sku.Sku) <= 0 {
 				return 0, errors.New("The sku field can't be empty")
 			}
@@ -204,7 +211,7 @@ func (source *CatalogService) CreateProduct(product Product) (int64, error) {
 		return 0, err
 	}
 
-	for _, sku := range product.Skus {
+	for _, sku := range product.Variations {
 		key := Key{Sku: sku.Sku}
 
 		json, err := toJSON(key)
@@ -302,14 +309,14 @@ func (source *CatalogService) UpdateProduct(product Product) error {
 		return err
 	}
 
-	for _, sku := range product.Skus {
+	for _, sku := range product.Variations {
 		if len(sku.Sku) <= 0 {
 			tx.Rollback()
 			return errors.New("The sku field can't be empty")
 		}
 
 		var isFound bool
-		for _, old_variation := range oldProduct.Skus {
+		for _, old_variation := range oldProduct.Variations {
 			if sku.Sku == old_variation.Sku {
 				isFound = true
 			}

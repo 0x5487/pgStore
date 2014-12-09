@@ -54,6 +54,7 @@ type LineItem struct {
 	ExtendedPriceWithTax Money         `json:"extended_price_with_tax"`
 	UnitWeight           int           `json:"unit_weight"`
 	ExtendedWeight       int           `json:"extended_weight"`
+	StockItems           []int64       `json:"stock_items"`
 	CustomFields         []CustomField `json:"custom_fields"`
 }
 

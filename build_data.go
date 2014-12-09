@@ -1,8 +1,6 @@
 package main
 
-import (
 //"fmt"
-)
 
 type aaa struct {
 	Sku string `json:"sku"`
@@ -48,19 +46,19 @@ func build_data() {
 	catalogService := NewCatalogService(dbLayer, jasonStore)
 
 	//create collection
-	var collection1 = Collection{UrlName: "men", Name: "men collection"}
+	var collection1 = Collection{Permalink: "men", Name: "men collection"}
 	_, err = catalogService.CreateCollection(collection1)
 
 	//create products
 	var sku1 = Variation{Sku: "abc001", Price: Money{90, 99}}
-	var product1 = Product{UrlName: "men-shoe", Price: Money{91, 89}, Name: "men shoe", Skus: []Variation{sku1}}
+	var product1 = Product{Permalink: "men-shoe", Price: Money{91, 89}, Name: "men shoe", Variations: []Variation{sku1}}
 	product1.Collections = []int64{1}
 	_, err = catalogService.CreateProduct(product1)
 	PanicIf(err)
 
 	var sku2 = Variation{Sku: "abc002", ListPrice: Money{92, 0}, Price: Money{93, 0}}
 	var sku3 = Variation{Sku: "abc003", ListPrice: Money{94, 0}, Price: Money{95, 0}}
-	var product2 = Product{UrlName: "men-shirt", Name: "men shirt", Skus: []Variation{sku2, sku3}}
+	var product2 = Product{Permalink: "men-shirt", Name: "men shirt", Variations: []Variation{sku2, sku3}}
 	product2.Collections = []int64{1}
 	_, err = catalogService.CreateProduct(product2)
 	PanicIf(err)
