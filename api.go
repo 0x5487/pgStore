@@ -26,14 +26,15 @@ func EnableApi(router *gin.Engine) {
 		v1.PUT("/collections/:collectionId", updateCollectionEndpointV1)
 		v1.DELETE("/collections/:collectionId", deleteCollectionEndpointV1)
 
+		v1.PUT("/orders/:orderId/line_items/:id", updateOrderLineItemsEndpointV1)
+		v1.DELETE("/orders/:orderId/line_items/:id", updateOrderLineItemsEndpointV1)
+		v1.POST("/orders/:orderId/line_items", updateOrderLineItemsEndpointV1)
+		v1.PUT("/orders/:orderId/empty", getOrderEndpointV1)
 		v1.GET("/orders/:orderId", getOrderEndpointV1)
 		v1.POST("/orders", createOrderEndpointV1)
-		v1.PUT("/orders/:orderId/line_items", updateOrderLineItemsEndpointV1)
-		v1.PUT("/orders/:orderId/coupons", updateOrderCouponsEndpointV1)
-		v1.PUT("/orders/:orderId", updateOrderEndpointV1)
-		v1.DELETE("/orders/:orderId", deleteOrderEndpointV1)
+		v1.GET("/orders", getOrderEndpointV1)
 
-		v1.GET("/warehouse/:warehouseId/stock_items/:stock_item_id", getOrderEndpointV1)
+		v1.GET("/warehouse/:warehouseId/stock_items/:id", getOrderEndpointV1)
 		v1.GET("/warehouse/:warehouseId/stock_items", getOrderEndpointV1)
 		v1.GET("/warehouse", getOrderEndpointV1)
 		v1.POST("/warehouse/:warehouseId/stock_movements", getOrderEndpointV1)
@@ -319,13 +320,5 @@ func updateOrderLineItemsEndpointV1(c *gin.Context) {
 }
 
 func updateOrderCouponsEndpointV1(c *gin.Context) {
-
-}
-
-func updateOrderEndpointV1(c *gin.Context) {
-
-}
-
-func deleteOrderEndpointV1(c *gin.Context) {
 
 }
