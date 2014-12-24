@@ -78,6 +78,7 @@ type Product struct {
 
 type Variation struct {
 	Id                        int64         `json:"id"`
+	Name                      string        `json:"name"`
 	Sku                       string        `json:"sku"`
 	ListPrice                 Money         `json:"list_price"`
 	ListPriceWithTax          Money         `json:"list_price_with_tax"`

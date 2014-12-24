@@ -34,12 +34,13 @@ func EnableApi(router *gin.Engine) {
 		v1.POST("/orders", createOrderEndpointV1)
 		v1.GET("/orders", getOrderEndpointV1)
 
+		v1.PUT("/checkouts/:orderId", getOrderEndpointV1)
+
 		v1.GET("/warehouse/:warehouseId/stock_items/:id", getOrderEndpointV1)
 		v1.GET("/warehouse/:warehouseId/stock_items", getOrderEndpointV1)
 		v1.GET("/warehouse", getOrderEndpointV1)
 		v1.POST("/warehouse/:warehouseId/stock_movements", getOrderEndpointV1)
 
-		v1.GET("/counters/:variationId", getOrderEndpointV1)
 		v1.POST("/counters", getOrderEndpointV1)
 	}
 
